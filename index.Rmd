@@ -1,0 +1,180 @@
+---
+title: "Prevalence of Schizophrenia in the UK by Age Group"
+author: "T.McGeown"
+date: "19/05/2021"
+output: html_document
+---
+
+## Data Origins
+
+The data is sourced from [Our World in Data](https://ourworldindata.org/). It originally came from the Global Burden of Disease Study conducted by the Institute for Medical Metrics and Evaluation at the University of Washington, which aims to quantify the impact of health challenges around the World. The data was collected and analysed by over 3,600 researchers in over 145 countries. Though the study looks at over 350 diseases, this data looks specifically at the prevalence of schizophrenia by age group in 195 countries each year from 1990 to 2017. It aims to include both diagnosed and undiagnosed individuals, by collecting data from a range of sources including censuses, surveys and health services. The data has 14 variables including the country, a country code, the year and the prevalence of schizophrenia in 11 different age categories.
+
+```{r data origins}
+
+#Locate the data
+datafile = "~/Documents/CNHN/PSY6422/project/data/prevalence-of-schizophrenia-by-age.csv"
+#Load the Data
+mydata=read.csv(datafile)
+```
+By changing the names of the columns to something more concise, the first few lines of the data can be seen.
+
+```{r wrange step 1}
+
+#renaming columns so they are easier to use and in better format
+new_names = c("country","code","year","prevalence_10_14", "prevalence_15_19", "prevalence_20_24",
+              "prevalence_25_29", "prevalence_30_34", "prevalence_all_ages", "prevalence_5_14", 
+              "prevalence_15_49", "prevalence_50_69", "prevalence_70_up", "prevalence_stand")
+
+#loops through each column and asigns a new name to each
+for (i in 1:14){
+  colnames(mydata)[i] <- new_names[i]
+}
+
+#display raw data with new column names
+head(mydata)
+
+```
+## Research Questions
+
+* How has the prevalence of schizophrenia changed between 1990 and 2017? 
+
+* Have specific age groups experienced significant changes in the prevalence of schizophrenia? 
+
+## Data Preperation
+
+The data provides information on 195 countries, however, for this investigation I only want to look at schizophrenia prevalence in the UK. Furthermore, the data was in a format where the prevalence for each age group was presented in separate columns. However, to produce a graphical visualisation I ideally needed all the data on prevalence in a single column, irrespective of age group. I then needed a new column which stated which age group the prevalence data belonged to. This would allow me to plot all the prevalence data and subsequently group it by age. Lastly, I wanted to also investigate the relative change in prevalence in each age group, so created another column which calculated this. To achieve these goals, I created individual data frames for each age group consisting of the variables: year, prevalence, age group and relative change. I then combined these into a single large data frame.
+
+```{r data wrangling, message=FALSE}
+
+#load in the tidyverse library which provides functions to efficiently manage data 
+library(tidyverse)
+
+#selecting the uk data
+uk<-mydata[c(6049:6076),]
+
+#function to produce individual data frames for each age group
+#inputs are the selected column, the column name in characters and the age group in characters
+prev_by_age <- function(prev,prev_name,age) {
+  #select only the year and prevalence (for a specific age group) columns
+  uk<-uk %>% 
+    select("year",prev_name)
+  #create a new column which states the age group
+  uk<-uk %>% 
+    mutate(age_group=age)
+  #create a new column which calculates the relative change in prevalence. It does this by subtracting the prevalence in 1990 for a specific age group from the prevalence of each subsequent year for that age group and dividing by the prevalence in 1990
+  uk<-uk %>%
+    mutate(rel_change=(((uk$prev-uk[1,2])/uk[1,2])*100))    
+  #the prevalence column is renamed "prevalence" i.e. removing the age group from the column name so each data frame is the same and can be later combined
+  colnames(uk)[2]<-"prevalence"                        
+  return(uk)                                         
+}
+
+#function is used on each age group to produce a separate data frame for each
+uk_1<-prev_by_age(prevalence_10_14,"prevalence_10_14","10-14")
+uk_2<-prev_by_age(prevalence_15_19,"prevalence_15_19","15-19")
+uk_3<-prev_by_age(prevalence_20_24,"prevalence_20_24","20-24")
+uk_4<-prev_by_age(prevalence_25_29, "prevalence_25_29","25-29")
+uk_5<-prev_by_age(prevalence_30_34, "prevalence_30_34","30-34")
+uk_6<-prev_by_age(prevalence_all_ages, "prevalence_all_ages","All ages")
+uk_7<-prev_by_age(prevalence_5_14, "prevalence_5_14","5-14")
+uk_8<-prev_by_age(prevalence_15_49, "prevalence_15_49","15-49")
+uk_9<-prev_by_age(prevalence_50_69, "prevalence_50_69","50-69")
+uk_10<-prev_by_age(prevalence_70_up, "prevalence_70_up","70+")
+uk_11<-prev_by_age(prevalence_stand, "prevalence_stand","Standardised")
+
+#each dataframe is combined to create one dataframe consisting of all age groups in a format that can be used to make graphs
+prev_combined <- rbind(uk_1, uk_2, uk_3, uk_4, uk_5, uk_6, uk_7, uk_8, uk_9, uk_10, uk_11)
+
+#display first few lines of processed data
+head(prev_combined)
+```
+## Visualisation 1
+
+```{r visualisation 1, message=FALSE}
+#load in ggplot2, a package for creating visualisations, and plotly, to make it interactive. 
+library(ggplot2)
+library(plotly)
+
+#visualising prevalence of schizophrenia by age group
+#select 'prev_combined' as the data to plot. Within aesthetics, select which variable will be plotted on the x and y axes. Include 'group=1' simply to override default behaviour of ggplotly. Assign each of the data variables a better formatted name which will feature when hovering over interactive graph.
+p <- ggplot(data=prev_combined, mapping = aes(x=year, y=prevalence, group=1, 
+                                               text=paste("Age Group: ", age_group,
+                                               "<br>Year: ", year,
+                                               "<br>Prevalence (%): ", 
+                                               round(prevalence, digits = 4)))) + 
+ 
+   #plot data points and lines, and display each in a different colour dependent on the age group. The specfic colours are defined. A visual style for the graph is selected and the font size defined. The x axis labels are adjusted and the y axis limits are defined.
+  geom_point(aes(color=age_group)) + geom_line(aes(color=age_group)) + 
+  scale_color_manual(values =c(c('#FF6666','#FFB266','#FFFF66','#B2FF66',
+  '#66FF66','#66FFB2','#66FFFF','#66B2FF','#6666FF','#B266FF','#FF66FF'))) +
+  theme_light(base_size=10) +
+  theme(axis.text.x = element_text(angle=45, hjust = 1, size = 7)) +
+  expand_limits(y=c(0.00, 0.45)) +
+  
+  #the graph title, x axis label and y axis label are defined. The intervals along each axis are also defined.
+  ggtitle("Prevalence of Schizophrenia by Age Group in the UK") +
+  scale_x_continuous(name="Year", breaks = seq(1990, 2017,3)) + 
+  scale_y_continuous(name = "Prevalence by percentage of age group (%)", 
+                     breaks= seq(0.0,    0.5, 0.05)) +
+  
+  #the legend name and its position are defined
+  labs(color="Age Group") +
+  theme(legend.position="right")
+
+#the graph is made interactive
+ggplotly(p, tooltip='text')
+
+```
+Looking at the graph, it can be seen that with the exception of the 70+ age group, all age groups show an overall increase in number of people with the illness. For some of the age groups this increase appears exceptionally small, however, as we will see in the next visualisation, the relative change can be significantly large. Schizophrenia was most prevalent in 50-69 year olds until 2012, when it was then overtaken by the prevalence in 30-34 year olds. Lastly, the 25-29 age group showed the steepest increase. 
+
+## Visualisation 2
+
+```{r visualisation 2}
+#visualising relative change in prevalence of schizophrenia by age group
+#select 'prev_combined' as the data to plot. Within aesthetics, select which variable will be plotted on the x and y axes. Include 'group=1' simply to override default behaviour of ggplotly. Assign each of the data variables a better formatted name which will feature when hovering over interactive graph.
+p2 <- ggplot(data=prev_combined, mapping = aes(x=year, y=rel_change, group=1,
+                                                text=paste("Age Group: ", age_group,
+                                                "<br>Year: ", year,
+                                                "<br>Relative change (%): ", 
+                                                round(rel_change, digits = 4)))) +
+  
+  #plot data points and lines, and display each in a different colour dependent on the age group. The specfic colours are defined. A visual style for the graph is selected and the font size defined. The x axis labels are adjusted and the y axis limits are defined.
+  geom_point(aes(color=age_group)) + geom_line(aes(color=age_group)) + 
+  scale_color_manual(values = c(c('#FF6666','#FFB266','#FFFF66','#B2FF66',
+  '#66FF66','#66FFB2','#66FFFF','#66B2FF','#6666FF','#B266FF','#FF66FF'))) +
+  theme_light(base_size=10) +
+  theme(axis.text.x = element_text(angle=45, hjust = 1, size = 7)) +
+  expand_limits(y=c(-6, 15)) +
+  
+  #the graph title, x axis label and y axis label are defined. The intervals along each axis are also defined.
+  ggtitle("Relative Change in Prevalence of Schizophrenia by Age Group in the UK") +
+  scale_x_continuous(name="Year", breaks = seq(1990, 2017,3)) + 
+  scale_y_continuous(name = "Prevalence as relative change in percentage of age group (%)", 
+                     breaks= seq(-6, 16, 2)) +
+  
+  #the legend name and its position are defined
+  labs(color="Age Group") +
+  theme(legend.position="right")
+
+#the graph is made interactive
+ggplotly(p2, tooltip='text')
+```
+
+Interestingly, though the 10-14 age group showed the lowest prevalence of schizophrenia, it shows the greatest change in prevalence relative to what it was in 1990. This peaked in 2009.
+The 50-69 and 70+ age groups showed greatest relative decreases in prevalence, reaching their lowest during the years 2010-2012. The 20-24, the 25-29, the 15-49 and the 30-34 age groups show the greatest relative increase in the few years leading up to 2017.
+
+## Summary
+
+To answer the research questions, there has been an overall increase in the prevalence of schizophrenia in the UK between the years 1990 and 2017. More specifically, the greatest increases have occurred among young adults.
+
+The two visualisations demonstrate how displaying the data in different ways can lead to different interpretations. For example, in visualisation 1, the 10-14 age group appear to show little change in prevalence over the years. However, by accounting for the initial number of cases within the age group, visualisation 2 shows that the 10-14 age group actually experienced some of the most significant changes.
+
+### Caveats
+* Reasons for the general increase cannot be known from the graphs. Though the data aims to include cases beyond that of only those who have been diagnosed, it is possible that greater awareness of the illness has lead to a greater number of cases being identified. On the other hand, there could be a genuine increase due to external factors which negatively impact mental health.
+
+* The age groups are not catagorised consistently. For example, the 10-14, the 15-19, the 20-24 span 4 years. However, some are much larger. For example, the 50-69 age group. Additionally, the data for ages between 34 and 50 is only available through the 15-49 age group. Therefore, data on certain age groups is more insightful than others.
+
+### Looking Forward
+* It would be interesting to see how prevalence has changed in the years since 2017, especially given the COVID-19 outbreak and the impact it has had on mental health.
+
+* Investigate how this data compares alongside other data on potential causes. This includes [stress and drug abuse](https://www.nhs.uk/mental-health/conditions/schizophrenia/causes/).
