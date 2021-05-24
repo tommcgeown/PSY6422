@@ -1,7 +1,7 @@
 #Locate the data
 datafile = "~/Documents/CNHN/PSY6422/project/data/prevalence-of-schizophrenia-by-age.csv"
 #Load the Data
-mydata=read.csv(datafile)
+prevalence_data =read.csv(datafile)
 
 
 #renaming columns so they are easier to use and in better format
@@ -11,18 +11,18 @@ new_names = c("country","code","year","prevalence_10_14", "prevalence_15_19", "p
 
 #loops through each column and asigns a new name to each
 for (i in 1:14){
-  colnames(mydata)[i] <- new_names[i]
+  colnames(prevalence_data)[i] <- new_names[i]
 }
 
 #display raw data with new column names
-head(mydata)
+head(prevalence_data)
 
 
 #load in the tidyverse library which provides functions to efficiently manage data 
 library(tidyverse)
 
 #selecting the uk data
-uk<-mydata[c(6049:6076),]
+uk<-prevalence_data[c(6049:6076),]
 
 #function to produce individual data frames for each age group
 #inputs are the selected column, the column name in characters and the age group in characters
